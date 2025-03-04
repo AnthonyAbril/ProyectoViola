@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notas Afinadas</title>
+    <style>
+        #feedback {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .correct {
+            color: green;
+        }
+        .incorrect {
+            color: red;
+        }
+
+        #afinador{
+            background-color: aqua;
+            width: 50vw;
+            height: 5vh;
+            margin: 0 auto;
+            display: flex;
+            position: relative;
+            justify-content: flex-start;
+        }
+        #afinado{
+            background-color: red;
+            height: 5vh;
+            width: 5vh;
+            position: absolute;
+            left: 50%; /* Posición inicial en el centro */
+            transition: left 0.1s ease-in-out;
+        }
+        #partitura{
+            display: flex;
+            justify-content: flex-start;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="afinador">
+        <div id="afinado"></div>
+    </div>
+    <h2><a href="../index.html">atras</a></h2>
+    <h1>Afinador de Notas</h1>
+    <p>Selecciona una nota:</p>
+    
+    <select id="notaSelect">
+        <option value="261.63">Do (C)</option>
+        <option value="293.66">Re (D)</option>
+        <option value="329.63">Mi (E)</option>
+        <option value="349.23">Fa (F)</option>
+        <option value="392.00">Sol (G)</option>
+        <option value="440.00">La (A)</option>
+        <option value="493.88">Si (B)</option>
+    </select>
+
+    <div id="partitura">
+    </div>
+
+
+    <p id="feedback">Afinación: </p>
+    <p id="difference"></p>
+    <button id="pdn">Pasar de nota</button>
+
+    <script>
+        const notasdepartitura = ["C4","D4","E4","F4","F4"];
+
+        puntero = 0;
+
+        function crearPartitura(){
+            outputPartitura = document.getElementById("partitura");
+            outputPartitura.innerHTML = "";
+            let contador = 0;
+            notasdepartitura.forEach(element => {
+                outputPartitura.innerHTML += '<div id="'+contador+'">'+element+'</div>';
+                contador++;
+            });
+        }
+
+        crearPartitura();
+
+        // Definir el mapa de frecuencias
+        const frecuencias_notas = {
+            "C4": 261.63,
+            "C#4": 277.18,
+            "D4": 293.66,
+            "D#4": 311.13,
+            "E4": 329.63,
+            "F4": 349.23,
+            "F#4": 369.99,
+            "G4": 392.00,
+            "G#4": 415.30,
+            "A4": 440.00,
+            "A#4": 466.16,
+            "B4": 493.88,
+            "C5": 523.25,
+            "C#5": 554.37,
+            "D5": 587.33,
+            "D#5": 622.25,
+            "E5": 659.26,
+            "F5": 698.46,
+            "F#5": 739.99,
+            "G5": 783.99,
+            "G#5": 830.61,
+            "A5": 880.00,
+            "A#5": 932.33,
+            "B5": 987.77
+        }
+
+        let audioContext;
+        let analyser;
+        let microphone;
+        let selectedFrequency = 0;
+        let precision = 15;
+        let afinador = document.getElementById('afinador');
+        let afinado = document.getElementById('afinado');
+        let afinadorWidth = afinador.clientWidth;
+
+        function reproducirNota() {
+            //selectedFrequency = parseFloat(document.getElementById("notaSelect").value);
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            const oscillator = audioContext.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(selectedFrequency, audioContext.currentTime);
+            
+            oscillator.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 1);
+        }
+
+        function iniciarMicrófono() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        analyser = audioContext.createAnalyser();
+                        analyser.fftSize = 4096;
+                        microphone = audioContext.createMediaStreamSource(stream);
+                        microphone.connect(analyser);
+                        analizarFrecuencia();
+                    })
+                    .catch(function(err) {
+                        alert('Error al acceder al micrófono: ' + err);
+                    });
+            } else {
+                alert('Este navegador no soporta acceso al micrófono.');
+            }
+        }
+
+        let afinadoCount = 0; 
+        const afinadoNecesario = 20;
+        const historySize = 5; // Tamaño del historial de frecuencias para suavizar
+        let frequencyHistory = [];
+
+        function analizarFrecuencia() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function detectarAfinacion(notaElegida) {
+                selectedFrequency = notaElegida;
+                analyser.getByteFrequencyData(dataArray);
+
+                let maxIndex = 0;
+                let maxValue = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    if (dataArray[i] > maxValue) {
+                        maxValue = dataArray[i];
+                        maxIndex = i;
+                    }
+                }
+
+                const nyquist = audioContext.sampleRate / 2;
+                let frequency = maxIndex * nyquist / bufferLength;
+
+                // 🔹 FILTRO DE FRECUENCIA MÍNIMA
+                if (frequency < 50) {
+                    requestAnimationFrame(() => detectarAfinacion(notaElegida));
+                    return; // Ignorar frecuencias demasiado bajas
+                }
+
+                // 🔹 SUAVIZAR CON PROMEDIO MÓVIL
+                if (frequencyHistory.length >= historySize) {
+                    frequencyHistory.shift(); // Eliminar el valor más antiguo
+                }
+                frequencyHistory.push(frequency);
+                frequency = frequencyHistory.reduce((a, b) => a + b, 0) / frequencyHistory.length; // Promedio
+
+                const difference = frequency - selectedFrequency;
+                document.getElementById('difference').textContent = `Diferencia: ${difference.toFixed(2)} Hz`;
+
+                moverAfinado(difference);
+                requestAnimationFrame(() => detectarAfinacion(notaElegida));
+
+                if (Math.abs(difference) < precision) {
+                    afinadoCount++;
+                    document.getElementById('feedback').textContent = "¡Afinado!";
+                    document.getElementById('feedback').classList.add("correct");
+                    document.getElementById('feedback').classList.remove("incorrect");
+
+                    if (afinadoCount >= afinadoNecesario) {
+                        setTimeout(() => pasarSiguienteNota(), 500);
+                    }
+                } else {
+                    afinadoCount = 0;
+                    document.getElementById('feedback').textContent = "Desafinado, intenta de nuevo.";
+                    document.getElementById('feedback').classList.add("incorrect");
+                    document.getElementById('feedback').classList.remove("correct");
+                }
+            }
+
+            detectarAfinacion(frecuencias_notas[notasdepartitura[puntero]]);
+        }
+
+
+        // Pasar a la siguiente nota
+        function pasarSiguienteNota() {
+            if (puntero < notasdepartitura.length - 1) {
+                puntero++;
+                console.log("Nueva nota:", notasdepartitura[puntero]);
+
+                afinadoCount = 0; // Reiniciar estabilidad
+                frequencyHistory = []; // Limpiar historial de frecuencias
+                selectedFrequency = frecuencias_notas[notasdepartitura[puntero]]; // Nueva frecuencia objetivo
+                
+                crearPartitura(); // Actualizar la partitura
+                analizarFrecuencia(); // Reiniciar detección de afinación
+
+            } else {
+                document.getElementById("feedback").textContent = "¡Partitura completada!";
+            }
+        }
+
+
+
+        function moverAfinado(difference) {
+            let maxOffset = afinadorWidth - afinado.clientWidth;
+            let offset = ((difference / precision) * (maxOffset / 2)) + (afinadorWidth / 2 - afinado.clientWidth / 2);
+            offset = Math.max(0, Math.min(offset, maxOffset));
+            afinado.style.left = `${offset}px`;
+        }
+
+        window.onload = function() {
+            iniciarMicrófono();
+        };
+    </script>
+</body>
+</html>
