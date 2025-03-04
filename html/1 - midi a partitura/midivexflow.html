@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renderizar MIDI en VexFlow</title>
+    <!-- Cargar VexFlow desde unpkg -->
+    <script src="https://unpkg.com/vexflow@4.0.3/build/cjs/vexflow.js"></script>
+    <!-- Cargar Tone.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
+</head>
+<body>
+    <h2><a href="../index.html">atras</a></h2>
+    <h1>Cargar y Renderizar MIDI</h1>
+    
+    <!-- Botón para subir archivo MIDI -->
+    <input type="file" id="midiFile" accept=".mid">
+    
+    <!-- Contenedor de la partitura -->
+    <div id="boo"></div>
+
+    <script>
+        const { Factory } = Vex.Flow;
+
+        // Función para leer y procesar el archivo MIDI
+        document.getElementById('midiFile').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Leer el archivo con FileReader
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const midiData = e.target.result;
+                parseMIDI(midiData); // Procesar los datos del MIDI
+            };
+            reader.readAsArrayBuffer(file); // Leer como ArrayBuffer
+        });
+
+        // Función para analizar el archivo MIDI y extraer notas
+        async function parseMIDI(midiData) {
+            // Crear un objeto MIDI a partir del ArrayBuffer
+            const midi = new Midi(midiData);
+            let notes = '';
+
+            // Tomar las notas de la primera pista
+            midi.tracks.forEach(track => {
+                track.notes.forEach(note => {
+                    // Convertir notas a formato para VexFlow
+                    notes += `${note.name}/q, `;
+                });
+            });
+
+            // Eliminar la última coma extra
+            notes = notes.slice(0, -2);
+
+            console.log(notes);
+
+            // Limpiar el contenedor para la nueva partitura
+            document.getElementById('boo').innerHTML = '';
+
+            // Crear el entorno VexFlow y renderizar las notas
+            const vf = new Factory({ renderer: { elementId: 'boo' } });
+            const score = vf.EasyScore();
+            const system = vf.System();
+
+            // Añadir el pentagrama y las notas
+            system.addStave({
+                voices: [score.voice(score.notes(notes))]
+            }).addClef('treble').addTimeSignature('4/4');
+
+            // Dibujar la partitura
+            vf.draw();
+        }
+    </script>
+</body>
+</html>

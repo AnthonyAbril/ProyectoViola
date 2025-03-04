@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VexFlow Notación</title>
+    <!-- Cargar VexFlow desde unpkg -->
+    <script src="https://unpkg.com/vexflow@4.0.3/build/cjs/vexflow.js"></script>
+</head>
+<body>
+    
+    <h2><a href="../index.html">atras</a></h2>
+    <h1>Partitura con VexFlow</h1>
+    
+    <!-- Contenedor donde se dibujará la partitura -->
+    <div id="output"></div>
+
+    <script>
+        // This approach to importing classes works in CJS contexts (i.e., a regular <script src="..."> tag).
+        const { Stave, StaveNote, Beam, Formatter, Renderer } = Vex;
+
+        // Create an SVG renderer and attach it to the DIV element with id="output".
+        const div = document.getElementById("output");
+        const renderer = new Renderer(div, Renderer.Backends.SVG);
+
+        // Configure the rendering context.
+        renderer.resize(720, 130);
+        const context = renderer.getContext();
+
+        // Measure 1
+        const staveMeasure1 = new Stave(10, 0, 300);
+        staveMeasure1.addClef("treble").setContext(context).draw();
+
+        const notesMeasure1 = [new StaveNote({ keys: ["c/4"], duration: "q" }), new StaveNote({ keys: ["d/4"], duration: "q" }), new StaveNote({ keys: ["b/4"], duration: "qr" }), new StaveNote({ keys: ["c/4", "e/4", "g/4"], duration: "q" })];
+
+        // Helper function to justify and draw a 4/4 voice
+        Formatter.FormatAndDraw(context, staveMeasure1, notesMeasure1);
+
+        // Measure 2 - second measure is placed adjacent to first measure.
+        const staveMeasure2 = new Stave(staveMeasure1.width + staveMeasure1.x, 0, 400);
+
+
+        const notesMeasure2_part1 = [new StaveNote({ keys: ["c/4"], duration: "8" }), new StaveNote({ keys: ["d/4"], duration: "8" }), new StaveNote({ keys: ["b/4"], duration: "8" }), new StaveNote({ keys: ["c/4", "e/4", "g/4"], duration: "8" })];
+
+        // Create the beams for 8th notes in second measure.
+        const beam1 = new Beam(notesMeasure2_part1);
+
+
+
+        const notesMeasure2_part2 = [new StaveNote({ keys: ["c/4"], duration: "8" }), new StaveNote({ keys: ["d/4"], duration: "8" }), new StaveNote({ keys: ["b/4"], duration: "8" }), new StaveNote({ keys: ["c/4", "e/4", "g/4"], duration: "8" })];
+
+        // Create the beams for 8th notes in second measure.
+        const beam2 = new Beam(notesMeasure2_part2);
+
+
+        //concatenacion
+
+        const notesMeasure2 = notesMeasure2_part1.concat(notesMeasure2_part2);
+
+        staveMeasure2.setContext(context).draw();
+        Formatter.FormatAndDraw(context, staveMeasure2, notesMeasure2);
+
+        // Render beams
+        beam1.setContext(context).draw();
+        beam2.setContext(context).draw();
+
+
+        //funcion de composicion
+
+        //funcion de renderizado
+
+    </script>
+</body>
+</html>

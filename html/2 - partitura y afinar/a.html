@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Osciloscopio de Audio</title>
+</head>
+<body>
+    <!-- Añadimos un canvas para dibujar la onda -->
+    <canvas id="oscilloscopeCanvas" width="800" height="400"></canvas>
+
+    <script>
+        // Creamos el contexto de audio
+        var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var analyser = audioCtx.createAnalyser();
+
+        // Configuración de la FFT
+        analyser.fftSize = 2048;
+        var bufferLength = analyser.frequencyBinCount;  // El número de muestras
+        var dataArray = new Uint8Array(bufferLength);
+
+        // Configuramos el canvas para dibujar
+        var canvas = document.getElementById('oscilloscopeCanvas');
+        var canvasCtx = canvas.getContext('2d');
+        var WIDTH = canvas.width;
+        var HEIGHT = canvas.height;
+
+        // Función para conectar una fuente de audio al análisis
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function(stream) {
+                var source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+                draw();
+            })
+            .catch(function(err) {
+                console.log('Error al acceder al micrófono: ' + err);
+            });
+
+        // Función para dibujar el osciloscopio
+        function draw() {
+            // Se solicita una nueva animación
+            requestAnimationFrame(draw);
+
+            // Obtenemos los datos del dominio de tiempo
+            analyser.getByteTimeDomainData(dataArray);
+
+            // Limpiamos el canvas
+            canvasCtx.fillStyle = 'rgb(200, 200, 200)';
+            canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // Configuramos el estilo para dibujar la línea
+            canvasCtx.lineWidth = 2;
+            canvasCtx.strokeStyle = 'rgb(0, 0, 0)';
+
+            canvasCtx.beginPath();
+
+            // Calculamos el ancho de cada 'slice'
+            var sliceWidth = WIDTH * 1.0 / bufferLength;
+            var x = 0;
+
+            // Dibujamos la forma de onda
+            for (var i = 0; i < bufferLength; i++) {
+                var v = dataArray[i] / 128.0;  // Normalizamos el valor
+                var y = v * HEIGHT / 2;
+
+                // Movemos el puntero de dibujo
+                if (i === 0) {
+                    canvasCtx.moveTo(x, y);
+                } else {
+                    canvasCtx.lineTo(x, y);
+                }
+
+                // Avanzamos a la siguiente posición
+                x += sliceWidth;
+            }
+
+            // Cerramos la línea en el centro del canvas
+            canvasCtx.lineTo(canvas.width, canvas.height / 2);
+            canvasCtx.stroke();
+        }
+    </script>
+</body>
+</html>

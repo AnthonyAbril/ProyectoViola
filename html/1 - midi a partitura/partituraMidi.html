@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partitura con VexFlow</title>
+    <script src="https://unpkg.com/vexflow@4.0.3/build/cjs/vexflow.js"></script>
+    <!-- Cargar Tone.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
+</head>
+<body>
+    
+    <h2><a href="../index.html">atras</a></h2>
+    <h1>Cargar y Renderizar MIDI</h1>
+    
+    <!-- Botón para subir archivo MIDI -->
+    <input type="file" id="midiFile" accept=".mid">
+
+    <div id="output"></div>
+
+    <script src="../js/parseMidi.js"></script>
+</body>
+</html>

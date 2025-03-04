@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partitura con VexFlow</title>
+    <script src="https://unpkg.com/vexflow@4.0.3/build/cjs/vexflow.js"></script>
+</head>
+<body>
+    <h2><a href="../index.html">atras</a></h2>
+    <h1>Partitura con VexFlow</h1>
+    <div id="output"></div>
+
+    <script>
+        const { Stave, StaveNote, Formatter, Renderer } = Vex;
+
+    // Crear un renderer SVG y adjuntarlo al DIV con id="output".
+    const div = document.getElementById("output");
+    const renderer = new Renderer(div, Renderer.Backends.SVG);
+
+    // Configurar el contexto de renderizado.
+    renderer.resize(800, 150);
+    const context = renderer.getContext();
+
+    // Datos de entrada (ahora en minúsculas)
+    const notas = [
+        "c/4/q", "d/4/q", "e/4/q", "f/4/q", // Compás 1
+        "c#/5/q", "b/4/q", "a/4/q", "g#/4/q", // Compás 2
+        "g/4/q", "f/4/q", "e/4/q", "d/4/q", // Compás 3
+        "c/4/q", "d/4/q", "e/4/q", "f/4/q", // Compás 4
+        "g/4/q", "a/4/q", "b/4/q", "c/5/q"  // Compás 5
+    ];
+
+    const notasPorCompas = 4; // Cuatro notas por compás
+    const compases = [];
+    for (let i = 0; i < notas.length; i += notasPorCompas) {
+        compases.push(notas.slice(i, i + notasPorCompas));
+    }
+
+    // Dibujar cada compás
+    let x = 10;
+    compases.forEach((compasNotas, index) => {
+        const stave = new Stave(x, 0, 150);
+        if (index === 0) stave.addClef("treble"); // Agregar clave solo en el primer compás
+        stave.setContext(context).draw();
+
+        // Convertir notas a StaveNote correctamente
+        const notasCompas = compasNotas.map(n => {
+            const [nota, octava, duracion] = n.split("/");
+            return new StaveNote({ keys: [`${nota.toLowerCase()}/${octava}`], duration: duracion });
+        });
+
+        Formatter.FormatAndDraw(context, stave, notasCompas);
+        x += 160; // Ajustar la posición para el siguiente compás
+    });
+
+    </script>
+</body>
+</html>

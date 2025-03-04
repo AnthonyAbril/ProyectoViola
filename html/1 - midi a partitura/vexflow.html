@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VexFlow Notación</title>
+    <!-- Cargar VexFlow desde unpkg -->
+    <script src="https://unpkg.com/vexflow@4.0.3/build/cjs/vexflow.js"></script>
+</head>
+<body>
+    <h2><a href="../index.html">atras</a></h2>
+    <h1>Partitura con VexFlow</h1>
+    
+    <!-- Contenedor donde se dibujará la partitura -->
+    <div id="boo"></div>
+
+    <script>
+        // Usar VexFlow
+        const { Factory } = Vex.Flow;
+
+        // Crear un SVG renderer y adjuntarlo al DIV con id "boo"
+        var vf = new Factory({renderer: {elementId: 'boo'}});
+        var score = vf.EasyScore();
+        var system = vf.System();
+
+        function dividirNotas(notas) {
+            // Dividimos las notas por coma
+            let notasArray = notas.split(', ');
+
+            // Agrupamos las notas en subgrupos de 4
+            let resultado = [];
+            for (let i = 0; i < notasArray.length; i += 4) {
+                resultado.push(notasArray.slice(i, i + 4).join(', '));
+            }
+
+            return resultado;
+        }
+
+let notas = "C4/q, D4/q, E4/q, F4/q, C#5/q, B4, A4, G#4";
+let resultado = dividirNotas(notas);
+console.log(resultado);
+
+
+let notas1 = "C4/q, D4/q, E4/q, F4/q";
+let notas2 = "D4/q, D4/q, E4/q, F4/q";
+
+
+        // Agregar pentagrama con notas
+        system.addStave({
+            voices: [
+                score.voice(score.notes(notas1, {STEM: 'up'})),
+                score.voice(score.notes(notas2, {STEM: 'up'}))
+            ]
+        }).addClef('treble').addTimeSignature('4/4');
+
+        // Dibujar la partitura
+        vf.draw();
+    </script>
+</body>
+</html>

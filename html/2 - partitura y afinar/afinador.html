@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afinador de Notas</title>
+    <style>
+        #feedback {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .correct {
+            color: green;
+        }
+        .incorrect {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h2><a href="../index.html">atras</a></h2>
+    <h1>Afinador de Notas</h1>
+    <p>Selecciona una nota:</p>
+    
+    <select id="notaSelect">
+        <option value="261.63">Do (C)</option>
+        <option value="293.66">Re (D)</option>
+        <option value="329.63">Mi (E)</option>
+        <option value="349.23">Fa (F)</option>
+        <option value="392.00">Sol (G)</option>
+        <option value="440.00">La (A)</option>
+        <option value="493.88">Si (B)</option>
+    </select>
+
+    <button onclick="reproducirNota()">Reproducir Nota</button>
+    <p id="feedback">Afinación: </p>
+
+    <script>
+        let audioContext;
+        let analyser;
+        let microphone;
+        let selectedFrequency = 0;
+
+        // Función para reproducir la nota seleccionada
+        function reproducirNota() {
+            selectedFrequency = parseFloat(document.getElementById("notaSelect").value);
+            // Crear contexto de audio
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Crear un oscilador para generar el sonido de la nota seleccionada
+            const oscillator = audioContext.createOscillator();
+            oscillator.type = 'sine';  // Tipo de onda
+            oscillator.frequency.setValueAtTime(selectedFrequency, audioContext.currentTime); // Establecer frecuencia
+
+            // Conectar el oscilador al contexto de audio
+            oscillator.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 1); // Detener después de 1 segundo
+        }
+
+        // Función para iniciar la captura del micrófono y analizar el audio
+        function iniciarMicrófono() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        analyser = audioContext.createAnalyser();
+                        microphone = audioContext.createMediaStreamSource(stream);
+                        microphone.connect(analyser);
+
+                        analizarFrecuencia();
+                    })
+                    .catch(function(err) {
+                        alert('Error al acceder al micrófono: ' + err);
+                    });
+            } else {
+                alert('Este navegador no soporta acceso al micrófono.');
+            }
+        }
+
+        // Función para analizar la frecuencia del sonido capturado en tiempo real
+        function analizarFrecuencia() {
+            analyser.fftSize = 2048;  // Tamaño del buffer de análisis
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function detectarAfinacion() {
+                analyser.getByteFrequencyData(dataArray);
+
+                // Encontrar la frecuencia dominante (fundamental)
+                let maxIndex = 0;
+                let maxValue = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    if (dataArray[i] > maxValue) {
+                        maxValue = dataArray[i];
+                        maxIndex = i;
+                    }
+                }
+
+                // Convertir el índice en frecuencia
+                const nyquist = audioContext.sampleRate / 2;
+                const frequency = maxIndex * nyquist / bufferLength;
+
+                // Comparar si la frecuencia capturada coincide con la frecuencia seleccionada
+                if (Math.abs(frequency - selectedFrequency) < 5) {
+                    document.getElementById('feedback').textContent = "¡Afinado!";
+                    document.getElementById('feedback').classList.add("correct");
+                    document.getElementById('feedback').classList.remove("incorrect");
+                } else {
+                    document.getElementById('feedback').textContent = "Desafinado, intenta de nuevo.";
+                    document.getElementById('feedback').classList.add("incorrect");
+                    document.getElementById('feedback').classList.remove("correct");
+                }
+
+                requestAnimationFrame(detectarAfinacion);
+            }
+
+            detectarAfinacion();
+        }
+
+        // Iniciar la captura del micrófono cuando la página se cargue
+        window.onload = function() {
+            iniciarMicrófono();
+        };
+    </script>
+</body>
+</html>
