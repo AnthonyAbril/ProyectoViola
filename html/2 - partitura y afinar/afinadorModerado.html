@@ -15,9 +15,30 @@
         .incorrect {
             color: red;
         }
+
+        #afinador{
+            background-color: aqua;
+            width: 50vw;
+            height: 5vh;
+            margin: 0 auto;
+            display: flex;
+            position: relative;
+            justify-content: flex-start;
+        }
+        #afinado{
+            background-color: red;
+            height: 5vh;
+            width: 5vh;
+            position: absolute;
+            left: 50%; /* Posición inicial en el centro */
+            transition: left 0.1s ease-in-out;
+        }
     </style>
 </head>
 <body>
+    <div id="afinador">
+        <div id="afinado"></div>
+    </div>
     <h2><a href="../index.html">atras</a></h2>
     <h1>Afinador de Notas</h1>
     <p>Selecciona una nota:</p>
@@ -34,10 +55,6 @@
 
     <button onclick="reproducirNota()">Reproducir Nota</button>
 
-    <p>Selecciona la precisión:</p>
-    <input type="range" id="precisionRange" min="1" max="20" value="5" step="1">
-    <p>Precisión: <span id="precisionValue">5</span> Hz</p>
-
     <p id="feedback">Afinación: </p>
     <p id="difference"></p>
 
@@ -46,35 +63,33 @@
         let analyser;
         let microphone;
         let selectedFrequency = 0;
-        let precision = 5;
+        let precision = 15;
+        let afinador = document.getElementById('afinador');
+        let afinado = document.getElementById('afinado');
+        let afinadorWidth = afinador.clientWidth;
 
-        // Función para reproducir la nota seleccionada
         function reproducirNota() {
             selectedFrequency = parseFloat(document.getElementById("notaSelect").value);
-            // Crear contexto de audio
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Crear un oscilador para generar el sonido de la nota seleccionada
             const oscillator = audioContext.createOscillator();
-            oscillator.type = 'sine';  // Tipo de onda
-            oscillator.frequency.setValueAtTime(selectedFrequency, audioContext.currentTime); // Establecer frecuencia
-
-            // Conectar el oscilador al contexto de audio
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(selectedFrequency, audioContext.currentTime);
+            
             oscillator.connect(audioContext.destination);
             oscillator.start();
-            oscillator.stop(audioContext.currentTime + 1); // Detener después de 1 segundo
+            oscillator.stop(audioContext.currentTime + 1);
         }
 
-        // Función para iniciar la captura del micrófono y analizar el audio
         function iniciarMicrófono() {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
                     .then(function(stream) {
                         audioContext = new (window.AudioContext || window.webkitAudioContext)();
                         analyser = audioContext.createAnalyser();
+                        analyser.fftSize = 4096;
                         microphone = audioContext.createMediaStreamSource(stream);
                         microphone.connect(analyser);
-
                         analizarFrecuencia();
                     })
                     .catch(function(err) {
@@ -85,16 +100,13 @@
             }
         }
 
-        // Función para analizar la frecuencia del sonido capturado en tiempo real
         function analizarFrecuencia() {
-            analyser.fftSize = 2048;  // Tamaño del buffer de análisis
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
 
             function detectarAfinacion() {
                 analyser.getByteFrequencyData(dataArray);
-
-                // Encontrar la frecuencia dominante (fundamental)
+                
                 let maxIndex = 0;
                 let maxValue = 0;
                 for (let i = 0; i < bufferLength; i++) {
@@ -104,15 +116,20 @@
                     }
                 }
 
-                // Convertir el índice en frecuencia
                 const nyquist = audioContext.sampleRate / 2;
-                const frequency = maxIndex * nyquist / bufferLength;
+                const freqEstimate = maxIndex * nyquist / bufferLength;
 
-                // Comparar si la frecuencia capturada coincide con la frecuencia seleccionada
-                const difference = Math.abs(frequency - selectedFrequency); // Diferencia en Hz
+                // Aplicando interpolación para mejor precisión
+                let left = dataArray[maxIndex - 1] || 0;
+                let center = dataArray[maxIndex];
+                let right = dataArray[maxIndex + 1] || 0;
+                let correction = (right - left) / (2 * (2 * center - left - right));
+                let frequency = (maxIndex + correction) * nyquist / bufferLength;
+                
+                const difference = frequency - selectedFrequency;
                 document.getElementById('difference').textContent = `Diferencia: ${difference.toFixed(2)} Hz`;
 
-                if (difference < precision) {
+                if (Math.abs(difference) < precision) {
                     document.getElementById('feedback').textContent = "¡Afinado!";
                     document.getElementById('feedback').classList.add("correct");
                     document.getElementById('feedback').classList.remove("incorrect");
@@ -122,19 +139,20 @@
                     document.getElementById('feedback').classList.remove("correct");
                 }
 
+                moverAfinado(difference);
                 requestAnimationFrame(detectarAfinacion);
             }
 
             detectarAfinacion();
         }
 
-        // Función para actualizar el valor de precisión y el rango
-        document.getElementById("precisionRange").addEventListener("input", function() {
-            precision = parseInt(this.value);
-            document.getElementById("precisionValue").textContent = precision;
-        });
+        function moverAfinado(difference) {
+            let maxOffset = afinadorWidth - afinado.clientWidth;
+            let offset = ((difference / precision) * (maxOffset / 2)) + (afinadorWidth / 2 - afinado.clientWidth / 2);
+            offset = Math.max(0, Math.min(offset, maxOffset));
+            afinado.style.left = `${offset}px`;
+        }
 
-        // Iniciar la captura del micrófono cuando la página se cargue
         window.onload = function() {
             iniciarMicrófono();
         };
